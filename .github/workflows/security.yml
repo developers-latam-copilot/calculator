@@ -1,0 +1,55 @@
+name: 'Centralized Deployment'
+
+on:
+  push:
+  repository_dispatch:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  CI:
+    name: CI Build 🚧
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [12.x, 14.x]
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+    
+      with:
+        node-version: ${{ matrix.node-version }}
+    
+    - run: npm install
+    - run: npm test
+  
+  APPSCAN:
+    needs: CI
+    # Consume reusable AppSec workflow
+    uses: developers-latam-copilot/required-workflows/.github/workflows/appsec_scan_full.yml@main
+    with:
+      core_language: "javascript"
+      deploy_url: "https://bookstore-4bb6jpr4qo62m.azurewebsites.net/"
+  
+  POLICY_CHECK:
+    name: Compliance 🔒
+    needs: APPSCAN
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo POLICIES PASSED. DEPLOYING.
+    
+  Deploy:
+    name: Deploy 🚢
+    needs: POLICY_CHECK
+    # Consume reusable deployment workflow 
+    # Runs on privleged Premium Runner 
+    uses: octodemo/mcantu-reusable-workflows/.github/workflows/deploy-node.yml@main
+    with:
+      AZURE_WEBAPP_NAME: "cenco-calc"
+      AZURE_WEBAPP_PACKAGE_PATH: "."
+    secrets:  
+      AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_PUBLISH_PROFILE }}
