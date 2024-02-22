@@ -1,19 +1,19 @@
 name: AppSec Vulnerability Scan (SAST & DAST)
 
-on: 
+on:
   push:
+    branches: [ master ]
   workflow_dispatch:
     inputs:
-
-      core_language:
-        description: Dominant programming language application is written in
-        required: true
-        type: string
-      
-      deploy_url:
-        description: The acessible URL where the application is deployed.
-        required: false
-        type: string
+        core_language:
+          description: Dominant programming language application is written in
+          required: true
+          type: string
+        
+        # deploy_url:
+        #   description: The acessible URL where the application is deployed.
+        #   required: false
+        #   type: string
   
 jobs:
   SAST:
@@ -29,20 +29,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ '${{ inputs.core_language }}' ]
+        language: [ 'javascript' ]
         # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python' ]
         # Learn more:
         # https://docs.github.com/en/free-pro-team@latest/github/finding-security-vulnerabilities-and-errors-in-your-code/configuring-code-scanning#changing-the-languages-that-are-analyzed
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
+      uses: github/codeql-action/init@v3
       with:
-        languages: ${{ inputs.core_language }}
+        languages: 'javascript'
         # queries: security-and-quality
         # If you wish to specify custom queries, you can do so here or in a config file.
         # By default, queries listed here will override any specified in a config file.
@@ -52,27 +52,31 @@ jobs:
     # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
     # If this step fails, then you should remove it and run the build manually (see below)
     - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
+      uses: github/codeql-action/autobuild@v3
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      uses: github/codeql-action/analyze@v3
 
   DAST:
     name: DAST 🔍
 
-    if: ${{ inputs.deploy_url }}
+    # if: ${{ inputs.deploy_url }}
 
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: ZAP Scan
-        uses: zaproxy/action-baseline@v0.7.0
+        uses: zaproxy/action-baseline@v0.11.0
         with:
-          target: ${{ inputs.deploy_url }}
+            token: ${{ secrets.GITHUB_TOKEN }}
+            docker_name: 'ghcr.io/zaproxy/zaproxy:stable'
+            target: 'https://bookstore-4bb6jpr4qo62m.azurewebsites.net'
+            # rules_file_name: '.zap/rules.tsv'
+            # cmd_options: '-a'
       - name: Create sarif file from zaproxy results
         uses: SvanBoxel/zaproxy-to-ghas@main
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results.sarif
